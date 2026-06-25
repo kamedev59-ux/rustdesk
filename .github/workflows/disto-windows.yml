@@ -244,6 +244,15 @@ jobs:
           fi
           echo "=== Verif metadonnees Cargo.toml ==="
           grep -nE 'ProductName|FileDescription' Cargo.toml || echo "(winres non trouve)"
+          # --- Phase 4 : couleurs du theme (violet #7257F0 / cyan #22D3EE) ---
+          DART=flutter/lib/common.dart
+          if [ -f "$DART" ]; then
+            sed -i 's/static const Color accent = Color(0xFF0071FF);/static const Color accent = Color(0xFF7257F0);/' "$DART"
+            sed -i 's/static const Color button = Color(0xFF2C8CFF);/static const Color button = Color(0xFF7257F0);/' "$DART"
+            sed -i 's/static const Color idColor = Color(0xFF00B6F0);/static const Color idColor = Color(0xFF22D3EE);/' "$DART"
+            echo "=== Verif couleurs common.dart ==="
+            grep -nE 'static const Color (accent|button|idColor) =' "$DART" || echo "(couleurs non trouvees)"
+          fi
 
       - name: Build rustdesk
         run: |
