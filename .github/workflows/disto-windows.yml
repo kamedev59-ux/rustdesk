@@ -220,6 +220,31 @@ jobs:
           fi
           head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-x64-windows-static-rel-out.log" || true
 
+      - name: Graver le serveur disto + renommer en disto (patch)
+        shell: bash
+        env:
+          DISTO_SERVER: ${{ secrets.DISTO_SERVER }}
+          DISTO_KEY: ${{ secrets.DISTO_KEY }}
+        run: |
+          set -e
+          CONF=libs/hbb_common/src/config.rs
+          test -f "$CONF" || { echo "config.rs introuvable (sous-module non initialise ?)"; exit 1; }
+          # --- Phase 2 : serveur + cle disto (valeurs venant des Secrets) ---
+          sed -i "s#rs-ny\.rustdesk\.com#${DISTO_SERVER}#g" "$CONF"
+          sed -i "s#OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=#${DISTO_KEY}#g" "$CONF"
+          # --- Phase 3 : nom de l'app ---
+          sed -i 's#RwLock::new("RustDesk".to_owned())#RwLock::new("disto".to_owned())#' "$CONF"
+          echo "=== Verif config.rs (serveur / cle / nom) ==="
+          grep -nE 'RENDEZVOUS_SERVERS|RS_PUB_KEY|APP_NAME' "$CONF" || echo "ATTENTION: motifs config.rs introuvables"
+          # --- Phase 3 : metadonnees Windows (secondaire, non bloquant) ---
+          sed -i 's/ProductName = "RustDesk"/ProductName = "disto"/' Cargo.toml || true
+          sed -i 's/FileDescription = "RustDesk Remote Desktop"/FileDescription = "disto - depannage a distance"/' Cargo.toml || true
+          if [ -f flutter/windows/runner/Runner.rc ]; then
+            sed -i 's/"RustDesk"/"disto"/g' flutter/windows/runner/Runner.rc || true
+          fi
+          echo "=== Verif metadonnees Cargo.toml ==="
+          grep -nE 'ProductName|FileDescription' Cargo.toml || echo "(winres non trouve)"
+
       - name: Build rustdesk
         run: |
           # --portable --flutter --skip-portable-pack --hwcodec --vram  (build-args de la matrice x64)
