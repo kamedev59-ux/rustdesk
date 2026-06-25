@@ -314,7 +314,13 @@ jobs:
               Write-Host "Ignore the printer driver error."
           }
 
-      - name: Renommer l'executable en disto.exe
+      - name: Download RustDeskTempTopMostWindow artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: topmostwindow-artifacts-x64
+          path: "./rustdesk"
+
+      - name: Renommer l'executable interne en disto.exe
         shell: bash
         run: |
           set -e
@@ -322,18 +328,28 @@ jobs:
             mv ./rustdesk/rustdesk.exe ./rustdesk/disto.exe
             echo "Renomme : rustdesk.exe -> disto.exe"
           else
-            echo "ATTENTION: ./rustdesk/rustdesk.exe introuvable"
+            echo "ATTENTION: ./rustdesk/rustdesk.exe introuvable"; exit 1
           fi
           ls -l ./rustdesk/*.exe
 
-      - name: Download RustDeskTempTopMostWindow artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: topmostwindow-artifacts-x64
-          path: "./rustdesk"
+      - name: Empaqueter en disto.exe auto-extractible
+        shell: bash
+        run: |
+          set -e
+          # Comme l'etape officielle "Build self-extracted executable"
+          sed -i '/dpiAware/d' res/manifest.xml || true
+          pushd ./libs/portable
+          pip3 install -r requirements.txt
+          # -e pointe vers l'exe interne renomme ; le wrapper prend res/icon.ico (deja disto)
+          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/disto.exe
+          popd
+          # Renommer le wrapper en disto.exe (NE PAS finir par 'install.exe' -> sinon mode installeur)
+          mv ./target/release/rustdesk-portable-packer.exe ./disto.exe
+          echo "=== Fichier final unique ==="
+          ls -l ./disto.exe
 
-      - name: Upload unsigned
+      - name: Upload disto.exe (mono-fichier portable)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: disto-windows-x86_64
-          path: rustdesk
+          name: disto-portable-windows-x86_64
+          path: disto.exe
